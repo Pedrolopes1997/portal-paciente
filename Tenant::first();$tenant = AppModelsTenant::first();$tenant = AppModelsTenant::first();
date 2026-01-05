@@ -1,0 +1,33 @@
+[90m= [39m[34;4mIlluminate\Database\Eloquent\Collection[39;24m {#2917
+    [34mall[39m: [
+      [34;4mApp\Models\User[39;24m {#7379
+        [34mid[39m: [35m1[39m,
+        [34mtasy_cd_pessoa_fisica[39m: [36mnull[39m,
+        [34mname[39m: "[32mANNA PAOLA RODRIGUEZ AMEZQUITA[39m",
+        [34memail[39m: "[32m06396238594@paciente.portal[39m",
+        [34mrole[39m: "[32mpaciente[39m",
+        [34mcpf[39m: [36mnull[39m,
+        [34memail_verified_at[39m: [36mnull[39m,
+        #[33mpassword[39m: "[32m$2y$12$yilqRr5NioxYNDZyMztd9OnR17fkQztBX6ODvJzGd6gf8ruPQzzN2[39m",
+        #[33mremember_token[39m: "[32m1HZitGIwwzKJ5xK5zWEGBWdklzD86NP3YzsDDMx3EpB0FMD7AHkKEutEk2P7[39m",
+        [34mcreated_at[39m: "[32m2026-01-02 22:12:39[39m",
+        [34mupdated_at[39m: "[32m2026-01-02 22:12:39[39m",
+        [34mtenant_id[39m: [36mnull[39m,
+      },
+      [34;4mApp\Models\User[39;24m {#7378
+        [34mid[39m: [35m6[39m,
+        [34mtasy_cd_pessoa_fisica[39m: [36mnull[39m,
+        [34mname[39m: "[32mPedro Admin[39m",
+        [34memail[39m: "[32mpedroarcangelo1997@gmail.com[39m",
+        [34mrole[39m: "[32mpaciente[39m",
+        [34mcpf[39m: [36mnull[39m,
+        [34memail_verified_at[39m: [36mnull[39m,
+        #[33mpassword[39m: "[32m$2y$12$Pq0mT5Y1vtxE.CxeiYTJbOqxGzB6WC3hRkfHRqhzIhJS6lJfBJqJy[39m",
+        #[33mremember_token[39m: "[32mKyajcrqlsRkZce9UtdbMW4oE92pFnlL1rcufLpVl7O2EW6dR1W54OCkuMdVI[39m",
+        [34mcreated_at[39m: "[32m2026-01-02 23:47:51[39m",
+        [34mupdated_at[39m: "[32m2026-01-02 23:47:51[39m",
+        [34mtenant_id[39m: [36mnull[39m,
+      },
+    ],
+  }
+
