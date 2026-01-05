@@ -6,7 +6,6 @@
     <title>Nova Senha - {{ $tenant->name ?? 'Portal' }}</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
     <script>
@@ -16,7 +15,7 @@
                     fontFamily: { sans: ['Inter', 'sans-serif'] },
                     colors: {
                         primary: { 
-                            50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 900: '#0c4a6e' 
+                            50: '#f0f9ff', 100: '#e0f2fe', 500: '{{ $tenant->primary_color ?? "#0ea5e9" }}', 600: '{{ $tenant->primary_color ?? "#0284c7" }}', 700: '#0369a1', 900: '#0c4a6e' 
                         },
                     }
                 }
@@ -79,10 +78,8 @@
 
                         <div>
                             <label class="block text-sm font-medium leading-6 text-gray-900">E-mail</label>
-                            <div class="mt-2">
-                                <input type="email" name="email" value="{{ $email ?? old('email') }}" readonly 
-                                    class="block w-full rounded-lg border-0 py-3 px-4 text-gray-500 bg-gray-100 ring-1 ring-inset ring-gray-300 sm:text-sm sm:leading-6 cursor-not-allowed">
-                            </div>
+                            <input type="email" name="email" value="{{ $email ?? old('email') }}" readonly 
+                                class="mt-2 block w-full rounded-lg border-0 py-3 px-4 text-gray-500 bg-gray-100 ring-1 ring-inset ring-gray-300 sm:text-sm sm:leading-6 cursor-not-allowed">
                         </div>
 
                         <div x-data="{ show: false }">
@@ -103,7 +100,7 @@
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium leading-6 text-gray-900">Confirmar Nova Senha</label>
+                            <label class="block text-sm font-medium leading-6 text-gray-900">Confirmar Senha</label>
                             <div class="relative mt-2 rounded-md shadow-sm">
                                 <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                                     <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -114,18 +111,16 @@
                             </div>
                         </div>
 
-                        <div>
-                            <button type="submit" class="flex w-full justify-center rounded-lg bg-primary-600 px-3 py-3 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 transition-all transform hover:-translate-y-0.5">
-                                Redefinir Senha
-                            </button>
-                        </div>
+                        <button type="submit" class="flex w-full justify-center rounded-lg bg-primary-600 px-3 py-3 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 transition-all transform hover:-translate-y-0.5">
+                            Redefinir Senha
+                        </button>
                     </form>
                 </div>
             </div>
         </div>
 
         <div class="relative hidden w-0 flex-1 lg:block">
-            <img class="absolute inset-0 h-full w-full object-cover" src="https://images.unsplash.com/photo-1516574187841-69301976e495?q=80&w=2070&auto=format&fit=crop" alt="Segurança">
+            <img class="absolute inset-0 h-full w-full object-cover" src="https://images.unsplash.com/photo-1579684385127-1ef15d508118?q=80&w=2080&auto=format&fit=crop" alt="Fundo Médico">
             
             <div class="absolute inset-0 bg-primary-900 mix-blend-multiply opacity-60"></div>
             

@@ -13,7 +13,7 @@
                     fontFamily: { sans: ['Inter', 'sans-serif'] },
                     colors: {
                         primary: { 
-                            50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 900: '#0c4a6e' 
+                            50: '#f0f9ff', 100: '#e0f2fe', 500: '{{ $tenant->primary_color ?? "#0ea5e9" }}', 600: '{{ $tenant->primary_color ?? "#0284c7" }}', 700: '#0369a1', 900: '#0c4a6e' 
                         },
                     }
                 }
@@ -34,7 +34,6 @@
                         <img class="h-12 w-auto object-contain" src="{{ asset('storage/'.$tenant->logo_path) }}" alt="{{ $tenant->name }}">
                     @else
                         <div class="flex items-center gap-2 text-primary-600">
-                             <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
                              <span class="font-bold text-2xl tracking-tight text-gray-900">{{ $tenant->name ?? 'Portal' }}</span>
                         </div>
                     @endif
@@ -43,7 +42,7 @@
                 <div>
                     <h2 class="text-2xl font-bold tracking-tight text-gray-900">Esqueceu sua senha?</h2>
                     <p class="mt-2 text-sm text-gray-600">
-                        Não se preocupe. Digite seu e-mail cadastrado e enviaremos um link para você redefinir sua senha.
+                        Digite seu e-mail cadastrado e enviaremos um link para você redefinir sua senha.
                     </p>
                 </div>
 
@@ -55,9 +54,7 @@
                                     <svg class="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 </div>
                                 <div class="ml-3">
-                                    <p class="text-sm font-medium text-green-800">
-                                        {{ session('status') }}
-                                    </p>
+                                    <p class="text-sm font-medium text-green-800">{{ session('status') }}</p>
                                 </div>
                             </div>
                         </div>
@@ -70,9 +67,7 @@
                                     <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" /></svg>
                                 </div>
                                 <div class="ml-3">
-                                    <p class="text-sm font-medium text-red-800">
-                                        {{ $errors->first() }}
-                                    </p>
+                                    <p class="text-sm font-medium text-red-800">{{ $errors->first() }}</p>
                                 </div>
                             </div>
                         </div>
@@ -90,7 +85,7 @@
                                     </svg>
                                 </div>
                                 <input id="email" name="email" type="email" autocomplete="email" required 
-                                    class="block w-full rounded-lg border-0 py-3 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6 bg-gray-50 focus:bg-white transition-colors" 
+                                    class="block w-full rounded-lg border-0 py-3 pl-11 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 sm:text-sm sm:leading-6 bg-gray-50 focus:bg-white transition-colors" 
                                     placeholder="seu@email.com" value="{{ old('email') }}">
                             </div>
                         </div>
@@ -113,7 +108,7 @@
         </div>
 
         <div class="relative hidden w-0 flex-1 lg:block">
-            <img class="absolute inset-0 h-full w-full object-cover" src="https://images.unsplash.com/photo-1584515933487-779824d29309?q=80&w=2070&auto=format&fit=crop" alt="Recuperação">
+            <img class="absolute inset-0 h-full w-full object-cover" src="https://images.unsplash.com/photo-1584515933487-779824d29309?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80" alt="Recuperação">
             
             <div class="absolute inset-0 bg-primary-900 mix-blend-multiply opacity-60"></div>
             

@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
-use App\Models\Tenant; // Importante
+use App\Models\Tenant;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Services\Drivers\HealthSystemInterface;
@@ -20,87 +20,102 @@ class FirstAccessController extends Controller
         $this->healthSystem = $healthSystem;
     }
 
-    // 1. Exibir o Formulário
-    // CORREÇÃO: Adicionamos $tenant_slug como argumento, vindo da Rota
     public function create($tenant_slug)
     {
-        // Buscamos o Tenant pelo Slug da URL
         $tenant = Tenant::where('slug', $tenant_slug)->firstOrFail();
-
         return view('auth.primeiro-acesso', compact('tenant'));
     }
 
-    // 2. Processar o Cadastro
-    // CORREÇÃO: Adicionamos $tenant_slug aqui também
     public function store(Request $request, $tenant_slug)
     {
         $tenant = Tenant::where('slug', $tenant_slug)->firstOrFail();
 
-        // Validação Básica
+        // 1. Validação dos Campos
         $request->validate([
             'cpf' => 'required|string',
             'nascimento' => 'required|date',
-            'email' => 'required|email|unique:users,email',
+            'email' => 'required|email|unique:users,email', // Email novo não pode existir
             'password' => 'required|string|min:8|confirmed',
-            'terms' => 'accepted', // <--- OBRIGATÓRIO: Tem que ser true/on
-        ], [
-            'terms.accepted' => 'Você precisa ler e aceitar os Termos de Uso para continuar.' // Mensagem personalizada
+            'terms' => 'accepted',
         ]);
 
         $cpfLimpo = preg_replace('/[^0-9]/', '', $request->cpf);
         
-        // --- CENÁRIO A: TASY (Validação Rígida) ---
+        // --- CENÁRIO A: TASY (INTEGRADO) ---
         if ($tenant->erp_driver === 'tasy') {
             
-            // Pergunta ao Oracle se o paciente existe
+            // Busca no Tasy
             $pacienteTasy = $this->healthSystem->validarPaciente($cpfLimpo, $request->nascimento);
 
             if (!$pacienteTasy) {
-                return back()
-                    ->withInput()
-                    ->withErrors(['main' => 'Dados não conferem com nosso cadastro hospitalar. Verifique o CPF e Data de Nascimento.']);
+                return back()->withInput()->withErrors(['main' => 'Dados não conferem com o cadastro hospitalar.']);
             }
 
-            // Se achou, verifica se já tem usuário criado para este ID do Tasy
-            // Nota: Ajuste 'cd_pessoa_fisica' conforme o retorno exato do seu Driver (maiúscula ou minúscula)
-            $userExiste = User::where('tasy_cd_pessoa_fisica', $pacienteTasy->cd_pessoa_fisica ?? $pacienteTasy->CD_PESSOA_FISICA)->first();
+            // Verifica se já tem conta vinculada a esse ID do Tasy
+            $userExiste = User::where('tenant_id', $tenant->id)
+                ->where('tasy_cd_pessoa_fisica', $pacienteTasy->cd_pessoa_fisica)
+                ->first();
             
             if ($userExiste) {
-                return back()->withErrors(['main' => 'Já existe um usuário cadastrado para este paciente. Tente recuperar a senha.']);
+                return back()->withErrors(['main' => 'Já existe um usuário para este paciente. Tente "Esqueci a Senha".']);
             }
 
-            // CRIA O USUÁRIO VINCULADO
+            // Cria o usuário
             $user = User::create([
-                'name' => $pacienteTasy->nm_pessoa_fisica ?? $pacienteTasy->NM_PESSOA_FISICA,
+                'name' => $pacienteTasy->nm_pessoa_fisica,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'tasy_cd_pessoa_fisica' => $pacienteTasy->cd_pessoa_fisica ?? $pacienteTasy->CD_PESSOA_FISICA,
+                'tasy_cd_pessoa_fisica' => $pacienteTasy->cd_pessoa_fisica,
                 'tenant_id' => $tenant->id,
+                'cpf' => $cpfLimpo,
+                'role' => 'paciente'
             ]);
 
         } 
-        // --- CENÁRIO B: LOCAL (Auto-cadastro Simples) ---
+        // --- CENÁRIO B: LOCAL (PAINEL ADMINISTRATIVO) ---
         else {
-            $user = User::create([
-                'name' => 'Paciente (Auto-cadastro)',
-                'email' => $request->email,
+            
+            // Busca o usuário que a secretária cadastrou no painel (pelo CPF)
+            // Mas que AINDA NÃO TEM SENHA (ou é um pré-cadastro)
+            $user = User::where('tenant_id', $tenant->id)
+                ->where('cpf', $cpfLimpo) // CPF cadastrado no painel
+                ->first();
+
+            if (!$user) {
+                return back()->withInput()->withErrors(['main' => 'Paciente não encontrado nesta clínica. Entre em contato com a recepção.']);
+            }
+
+            // Valida a Data de Nascimento (Segurança Extra)
+            if ($user->nascimento && $user->nascimento->format('Y-m-d') !== $request->nascimento) {
+                return back()->withInput()->withErrors(['main' => 'Data de nascimento incorreta.']);
+            }
+
+            // Se o usuário já tem senha e email, ele não deveria estar aqui
+            if (!empty($user->password)) {
+                return back()->withErrors(['main' => 'Você já possui cadastro. Faça login ou recupere a senha.']);
+            }
+
+            // ATUALIZA o usuário existente com o E-mail e Senha escolhidos
+            $user->update([
+                'email' => $request->email, // Atualiza o e-mail (pode ser diferente do cadastrado pela secretária)
                 'password' => Hash::make($request->password),
-                'tenant_id' => $tenant->id,
+                'email_verified_at' => now(),
             ]);
         }
 
+        // --- PÓS CADASTRO (IGUAL PARA OS DOIS) ---
         if (isset($user)) {
             TermAcceptance::create([
                 'user_id' => $user->id,
-                'term_version' => 'v1.0', // Se mudar os termos no futuro, mude para v1.1
+                'term_version' => 'v1.0',
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->header('User-Agent'),
             ]);
+
+            Auth::login($user);
+            return redirect()->route('paciente.dashboard', ['tenant_slug' => $tenant->slug]);
         }
 
-        // Loga o usuário e manda pro Dashboard
-        Auth::login($user);
-
-        return redirect()->route('paciente.dashboard', ['tenant_slug' => $tenant->slug]);
+        return back()->withErrors(['main' => 'Erro desconhecido ao criar usuário.']);
     }
 }

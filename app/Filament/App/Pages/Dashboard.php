@@ -2,15 +2,17 @@
 
 namespace App\Filament\App\Pages;
 
-use Filament\Pages\Page;
+use Filament\Pages\Dashboard as BaseDashboard;
 
-class Dashboard extends Page
+class Dashboard extends BaseDashboard
 {
     protected static ?string $navigationIcon = 'heroicon-o-home';
 
-    protected static string $view = 'filament.app.pages.dashboard';
+    // --- COMENTE OU REMOVA ESTA LINHA ---
+    // Ao remover a view personalizada, o Filament usa o layout padrão 
+    // que já sabe organizar os Widgets automaticamente.
+    // protected static string $view = 'filament.app.pages.dashboard';
 
-    // ADICIONE ESTAS DUAS LINHAS PARA GARANTIR QUE ELE SEJA A HOME
     protected static ?string $slug = '/';
     protected static ?string $title = 'Início';
 }

@@ -9,10 +9,11 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Auth\Events\PasswordReset;
+use App\Models\User;
 
 class ForgotPasswordController extends Controller
 {
-    // 1. Tela "Esqueci minha senha" (Pede E-mail)
+    // 1. Tela "Esqueci minha senha"
     public function showLinkRequestForm($tenant_slug)
     {
         $tenant = Tenant::where('slug', $tenant_slug)->firstOrFail();
@@ -23,21 +24,38 @@ class ForgotPasswordController extends Controller
     public function sendResetLinkEmail(Request $request, $tenant_slug)
     {
         $request->validate(['email' => 'required|email']);
+        
+        // Busca o Tenant para garantir que o usuário pertence a ele
+        $tenant = Tenant::where('slug', $tenant_slug)->firstOrFail();
 
-        // Forçamos o envio usando o Broker padrão, mas nossa notificação personalizada no Model User fará o resto
-        $status = Password::sendResetLink($request->only('email'));
+        // Verifica se o usuário existe NESTE tenant
+        $user = User::where('email', $request->email)
+                    ->where('tenant_id', $tenant->id)
+                    ->first();
 
-        if ($status == Password::RESET_LINK_SENT) {
-            return back()->with('status', 'Link de redefinição enviado para seu e-mail!');
+        if (!$user) {
+            // Retorna erro genérico por segurança, ou específico se preferir
+            return back()->withErrors(['email' => 'E-mail não encontrado nesta clínica.']);
         }
 
-        return back()->withErrors(['email' => __($status)]);
+        // Envia o link (A notificação 'TenantResetPassword' no Model User fará a mágica do link correto)
+        // Passamos o tenant_slug explicitamente para o contexto da notificação se necessário
+        $status = Password::sendResetLink(
+            $request->only('email'),
+            function ($user, $token) use ($tenant_slug) {
+                // Aqui garantimos que a notificação saiba o slug
+                $user->sendPasswordResetNotification($token, $tenant_slug);
+            }
+        );
+
+        return back()->with('status', 'Link de redefinição enviado para seu e-mail!');
     }
 
-    // 3. Tela "Nova Senha" (Clica no E-mail e cai aqui)
+    // 3. Tela "Nova Senha" (Link do E-mail cai aqui)
     public function showResetForm(Request $request, $tenant_slug, $token = null)
     {
         $tenant = Tenant::where('slug', $tenant_slug)->firstOrFail();
+        
         return view('auth.reset-password', [
             'token' => $token, 
             'email' => $request->email, 
@@ -54,6 +72,9 @@ class ForgotPasswordController extends Controller
             'password' => 'required|confirmed|min:8',
         ]);
 
+        $tenant = Tenant::where('slug', $tenant_slug)->firstOrFail();
+
+        // Reseta a senha
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function ($user, $password) {
@@ -62,7 +83,6 @@ class ForgotPasswordController extends Controller
                 ])->setRememberToken(Str::random(60));
 
                 $user->save();
-
                 event(new PasswordReset($user));
             }
         );

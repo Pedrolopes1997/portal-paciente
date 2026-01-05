@@ -23,24 +23,30 @@ class AdminPanelProvider extends PanelProvider
     public function panel(Panel $panel): Panel
     {
         return $panel
-        ->default()
-        ->id('admin')
-        ->path('admin')
-        ->login()
-        // Texto de boas vindas
-        ->renderHook(
-            'panels::auth.login.form.before',
-            fn () => view('filament.login_header') // Vamos criar esse arquivo já já
-        )
-        ->brandName('WeCare Admin')
-        ->favicon(asset('images/favicon.png'))
-        ->colors([
-            'primary' => Color::Teal, // Ou Color::Cyan, Color::Sky
-            'gray' => Color::Slate,
-        ])
-        ->font('Poppins')
-        ->sidebarCollapsibleOnDesktop()
-        ->maxContentWidth('full')
+            ->default()
+            ->id('admin')
+            ->path('admin')
+            ->login()
+            
+            // --- MELHORIAS VISUAIS ---
+            ->spa() // Navegação rápida
+            ->font('Poppins') // Mantendo sua escolha (muito boa para dashboards)
+            ->colors([
+                'primary' => Color::Teal, // Cor tech/sofisticada
+                'gray' => Color::Zinc,    // Cinza neutro e profissional
+            ])
+            ->sidebarCollapsibleOnDesktop()
+            ->maxContentWidth('full')
+            ->globalSearchKeyBindings(['command+k', 'ctrl+k']) // Atalho de busca profissional
+            // -------------------------
+
+            ->renderHook(
+                'panels::auth.login.form.before',
+                fn () => view('filament.login_header')
+            )
+            ->brandName('WeCare Admin')
+            ->favicon(asset('images/favicon.png'))
+            
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
@@ -49,7 +55,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
                 Widgets\AccountWidget::class,
-                Widgets\FilamentInfoWidget::class,
+                // Widgets\FilamentInfoWidget::class, // Removido como solicitado
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -65,10 +71,8 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ])
-
             ->plugins([
             ])
-            
             ->profile();
     }
 }
