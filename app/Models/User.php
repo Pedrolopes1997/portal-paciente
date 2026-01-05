@@ -29,7 +29,18 @@ class User extends Authenticatable implements FilamentUser, HasTenants
         'role',      // admin, user, etc
         'tenant_id', // Vínculo com a clínica
         'cpf',
-        'tasy_cd_pessoa_fisica'
+        'tasy_cd_pessoa_fisica',
+        'cns',
+        'nome_mae',
+        'nascimento',
+        'celular',
+        'cep',
+        'endereco',
+        'numero',
+        'complemento',
+        'bairro',
+        'cidade',
+        'uf',
     ];
 
     /**
@@ -52,6 +63,7 @@ class User extends Authenticatable implements FilamentUser, HasTenants
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'nascimento' => 'date',
         ];
     }
 

@@ -58,55 +58,37 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         $tenant = $user->tenant;
-        $idBusca = $this->getPacienteId($user);
 
-        if (empty($idBusca)) {
-            return view('dashboard', [
-                'paciente' => ['nome' => $user->name, 'carteirinha' => '--', 'plano' => '--'],
-                'exames' => collect([]),
-                'agendamentos' => collect([]),
-                'tenant' => $tenant,
-                'user' => $user
-            ]);
-        }
-
-        // Busca e Formata (Limitado)
-        $examesRaw = $this->healthSystem->buscarExames($idBusca);
-        $exames = $this->formatarExames($examesRaw, $tenant)->take(5); // Pega 5 formatados
-        
-        $agendamentos = $this->healthSystem->buscarAgendamentos($idBusca)->take(3);
-
-        $paciente = [
-            'nome' => $user->name, 
-            'plano' => 'Particular / Convênio', 
-            'carteirinha' => $idBusca 
-        ];
-
-        return view('dashboard', compact('paciente', 'exames', 'agendamentos', 'tenant', 'user'));
+        // Limpeza total: O Livewire faz o trabalho pesado agora
+        return view('dashboard', compact('tenant'));
     }
-
+    
     // PAGINA 2: AGENDA COMPLETA
     public function agendamentos()
     {
         $user = Auth::user();
         $tenant = $user->tenant;
-        $idBusca = $this->getPacienteId($user);
-
-        $agendamentos = $this->healthSystem->buscarAgendamentos($idBusca);
+        
+        // Removemos a busca $this->healthSystem->buscarAgendamentos...
+        // Passamos vazios, pois a view não usa mais eles (usa Livewire)
+        $agendamentos = collect([]);
 
         return view('paciente.agenda', compact('agendamentos', 'tenant', 'user'));
     }
 
-    // PAGINA 3: EXAMES COMPLETOS
+    /// PAGINA 3: EXAMES COMPLETOS
     public function exames()
     {
         $user = Auth::user();
         $tenant = $user->tenant;
-        $idBusca = $this->getPacienteId($user);
+        
+        // REMOVEMOS toda a lógica de busca lenta daqui.
+        // Passamos apenas o $tenant e $user para a view.
+        // O Livewire fará a busca assíncrona.
 
-        $examesRaw = $this->healthSystem->buscarExames($idBusca);
-        // Formata todos os exames
-        $exames = $this->formatarExames($examesRaw, $tenant);
+        // Passamos uma coleção vazia de $exames só para não quebrar 
+        // caso alguma lógica antiga ainda dependa, mas a view nova nem usa isso.
+        $exames = collect([]); 
 
         return view('paciente.exames', compact('exames', 'tenant', 'user'));
     }

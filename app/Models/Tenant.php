@@ -53,4 +53,31 @@ class Tenant extends Model
     {
         return $this->hasMany(Appointment::class);
     }
+
+    // --- NOVO MÉTODO ---
+    public function getWhatsappLink(string $mensagem = ''): ?string
+    {
+        if (empty($this->whatsapp)) {
+            return null;
+        }
+
+        // 1. Limpa o número (deixa apenas dígitos)
+        $numero = preg_replace('/[^0-9]/', '', $this->whatsapp);
+
+        // 2. Se não tiver código do país (55), adiciona
+        if (strlen($numero) <= 11) {
+            $numero = '55' . $numero;
+        }
+
+        // 3. Monta a URL base
+        $url = "https://wa.me/{$numero}";
+
+        // 4. Se tiver mensagem, adiciona codificada
+        if (!empty($mensagem)) {
+            $textoCodificado = urlencode($mensagem);
+            $url .= "?text={$textoCodificado}";
+        }
+
+        return $url;
+    }
 }

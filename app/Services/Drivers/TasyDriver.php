@@ -75,11 +75,11 @@ class TasyDriver implements HealthSystemInterface
     }
 
     // -------------------------------------------------------------------------
-    // BUSCAR EXAMES (RESULTADOS)
+    // BUSCAR EXAMES (RESULTADOS) - QUERY CORRIGIDA
     // -------------------------------------------------------------------------
     public function buscarExames($idPaciente)
     {
-        // Query com JOIN e CASE ajustados
+        // Query com DT_PROCEDIMENTO conforme solicitado
         $exames = DB::connection($this->connection)
             ->table('PROCEDIMENTO_PACIENTE as a')
             ->leftJoin('LAUDO_PACIENTE as b', 'a.NR_LAUDO', '=', 'b.NR_SEQUENCIA')
@@ -87,26 +87,29 @@ class TasyDriver implements HealthSystemInterface
                 'a.NR_SEQUENCIA as id_exame',
                 DB::raw("OBTER_DESC_PROCEDIMENTO(a.CD_PROCEDIMENTO, '') as descricao"), 
                 'b.DT_LIBERACAO as data_liberacao',
-                'b.DT_EXAME as data_realizado',
                 DB::raw("CASE WHEN b.DT_LIBERACAO IS NULL THEN 'EA' ELSE 'LL' END AS status_laudo"),
-                'a.NR_LAUDO'
+                'a.NR_LAUDO',
+                'a.DT_PROCEDIMENTO as data' // <--- Campo corrigido
             )
             // Filtro por função no WHERE
             ->whereRaw("OBTER_PF_ATENDIMENTO(a.NR_ATENDIMENTO, 'C') = ?", [$idPaciente])
-            ->orderByRaw("b.DT_EXAME DESC NULLS LAST")
+            ->orderBy('a.DT_PROCEDIMENTO', 'desc') // Ordena pela data do procedimento
             ->limit(50)
             ->get();
 
         // Mapeamento
         return $exames->map(function($exame) {
             $statusFinal = ($exame->status_laudo === 'LL') ? 'LIBERADO' : 'EM ANÁLISE';
-            $dataExibicao = $exame->data_realizado ?? $exame->data_liberacao;
+            
+            // Usamos a 'data' (DT_PROCEDIMENTO) vinda da query
+            $dataExibicao = $exame->data; 
 
             return (object) [
                 'id_exame' => $exame->id_exame,
                 'descricao' => $exame->descricao,
                 'data' => $dataExibicao,
-                'status' => $statusFinal
+                'status' => $statusFinal,
+                'status_laudo' => $exame->status_laudo // Passamos o raw também por garantia
             ];
         });
     }
@@ -149,7 +152,6 @@ class TasyDriver implements HealthSystemInterface
         $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf);
 
         // Busca na tabela PESSOA_FISICA (Tabela mestre de pacientes do Tasy)
-        // Nota: Ajuste os nomes das colunas conforme seu Tasy (geralmente é assim)
         $paciente = DB::connection($this->connection)
             ->table('PESSOA_FISICA')
             ->select('CD_PESSOA_FISICA', 'NM_PESSOA_FISICA')
@@ -157,7 +159,83 @@ class TasyDriver implements HealthSystemInterface
             ->whereRaw("TRUNC(DT_NASCIMENTO) = TO_DATE(?, 'YYYY-MM-DD')", [$dataNascimento])
             ->first();
 
-        return $paciente; // Retorna null se não achar, ou o objeto se achar
+        return $paciente;
     }
 
+    // NOVO MÉTODO COM SEU SQL CORRIGIDO
+    public function buscarUltimoConvenio($idPaciente)
+    {
+        try {
+            $dados = DB::connection($this->connection)
+                ->table('ATENDIMENTO_PACIENTE as a')
+                ->join('ATEND_CATEGORIA_CONVENIO as c', 'a.NR_ATENDIMENTO', '=', 'c.NR_ATENDIMENTO')
+                ->select(
+                    // Função Tasy para nome do convênio
+                    DB::raw("OBTER_DESC_CONVENIO(c.CD_CONVENIO) as convenio"),
+                    // Carteirinha
+                    'c.CD_USUARIO_CONVENIO as carteirinha'
+                )
+                ->where('a.CD_PESSOA_FISICA', $idPaciente)
+                ->orderBy('a.DT_ENTRADA', 'desc')
+                ->first();
+
+            return $dados ?? (object) [
+                'convenio' => 'Não identificado', 
+                'carteirinha' => '---'
+            ];
+
+        } catch (\Exception $e) {
+            // Em produção, você pode descomentar para ver o erro no log:
+            // \Illuminate\Support\Facades\Log::error("Erro Convenio: " . $e->getMessage());
+            
+            return (object) [
+                'convenio' => 'Erro na Busca', 
+                'carteirinha' => '---'
+            ];
+        }
+    }
+
+    // NOVO MÉTODO DE PERFIL (COM SEU SQL)
+    public function buscarDetalhesPaciente($idPaciente)
+    {
+        $sql = "
+            SELECT *
+            FROM (
+                SELECT
+                    a.NM_PESSOA_FISICA AS nome,
+                    a.NR_CPF AS cpf,
+                    a.NR_CARTAO_NAC_SUS AS cns,
+                    OBTER_NOME_MAE_PF(a.cd_pessoa_fisica) AS nome_mae,
+                    a.DT_NASCIMENTO AS nascimento,
+                    b.DS_ENDERECO AS endereco,
+                    b.NR_ENDERECO AS numero,
+                    b.DS_BAIRRO AS bairro,
+                    b.DS_MUNICIPIO AS cidade,
+                    b.SG_ESTADO AS uf,
+                    b.CD_CEP AS cep,
+                    b.NR_TELEFONE AS celular,
+                    b.DS_EMAIL AS email_tasy,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY a.cd_pessoa_fisica
+                        ORDER BY b.DT_ATUALIZACAO DESC
+                    ) rn
+                FROM PESSOA_FISICA a
+                JOIN COMPL_PESSOA_FISICA b
+                  ON a.cd_pessoa_fisica = b.cd_pessoa_fisica
+                WHERE a.CD_PESSOA_FISICA = :id_paciente
+            )
+            WHERE rn = 1
+        ";
+
+        try {
+            // Executa o SQL bruto passando o ID com segurança
+            $dados = DB::connection($this->connection)->selectOne($sql, ['id_paciente' => $idPaciente]);
+
+            return $dados;
+
+        } catch (\Exception $e) {
+            // Em caso de erro, retorna null para não quebrar a tela
+            return null;
+        }
+    }
 }

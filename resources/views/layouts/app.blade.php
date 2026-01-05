@@ -21,7 +21,7 @@
         }
     </script>
     
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    @livewireStyles
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
@@ -45,7 +45,7 @@
         >
             <div class="h-16 flex items-center px-4 border-b border-gray-100 flex-shrink-0 bg-white justify-between overflow-hidden whitespace-nowrap">
                 
-                                <div class="flex items-center gap-3 w-full">
+                <div class="flex items-center gap-3 w-full">
                     @if(isset($tenant->logo_path) && $tenant->logo_path)
                         <img src="{{ asset('storage/' . $tenant->logo_path) }}" 
                             alt="{{ $tenant->name }}" 
@@ -141,5 +141,7 @@
         </div>
 
     </div>
+
+    @livewireScripts
 </body>
 </html>
