@@ -3,14 +3,15 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-
 use App\Services\Drivers\HealthSystemInterface;
 use App\Services\Drivers\TasyDriver;
 // use App\Services\Drivers\MvDriver; // Futuro
-use App\Services\Drivers\LocalDriver; // Futuro
+use App\Services\Drivers\LocalDriver;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Tenant;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\Gate;
+use App\Models\User;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,7 +25,6 @@ class AppServiceProvider extends ServiceProvider
             $tenant = null;
 
             // 1. TENTATIVA VIA URL (Prioridade para o Portal do Paciente)
-            // O request() já estará disponível quando o Controller chamar essa classe
             $slug = request()->route('tenant_slug');
             if ($slug) {
                 $tenant = Tenant::where('slug', $slug)->first();
@@ -55,6 +55,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Define quem pode ver o Dashboard de Monitoramento (Laravel Pulse)
+        Gate::define('viewPulse', function (User $user) {
+            // Apenas Super Admins podem ver a saúde do servidor
+            return $user->role === 'super_admin';
+        });
     }
 }

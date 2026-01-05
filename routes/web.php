@@ -5,10 +5,15 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExameController; // <--- Importante estar aqui
 use Illuminate\Support\Facades\Route;
 
-// Rota Raiz
+// Rota da Landing Page (Página de Vendas)
 Route::get('/', function () {
-    return redirect('/admin');
-});
+    return view('landing');
+})->name('home');
+
+// Rotas de redirecionamento de login (Opcional, caso o Filament precise)
+Route::get('/login', function () {
+    return redirect()->route('filament.painel.auth.login');
+})->name('login');
 
 // Rota de Emergência para deslogar de qualquer lugar e limpar sessão
 Route::any('/sair-geral', function () {
