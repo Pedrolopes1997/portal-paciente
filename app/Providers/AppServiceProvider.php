@@ -13,6 +13,13 @@ use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Gate;
 use App\Models\User;
 
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Filesystem\FilesystemAdapter;
+use League\Flysystem\Filesystem;
+use Masbug\Flysystem\GoogleDriveAdapter;
+use Google\Client;
+use Google\Service\Drive;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -59,6 +66,33 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('viewPulse', function (User $user) {
             // Apenas Super Admins podem ver a saúde do servidor
             return $user->role === 'super_admin';
+        });
+
+        Storage::extend('google', function($app, $config) {
+            $client = new \Google\Client();
+            $client->setClientId($config['clientId']);
+            $client->setClientSecret($config['clientSecret']);
+            
+            // Define o Refresh Token
+            $client->refreshToken($config['refreshToken']);
+            
+            // FORÇA A GERAÇÃO DO ACCESS TOKEN AGORA
+            // Isso garante que o cliente esteja autenticado antes de ser usado
+            $newAccessToken = $client->fetchAccessTokenWithRefreshToken($config['refreshToken']);
+            $client->setAccessToken($newAccessToken);
+
+            $service = new \Google\Service\Drive($client);
+            
+            // Pega o ID da pasta do config
+            $folderId = $config['folder'] ?? '/';
+
+            // Opções para garantir compatibilidade
+            $options = ['useHasDir' => true];
+            
+            $adapter = new \Masbug\Flysystem\GoogleDriveAdapter($service, $folderId, $options);
+            $driver = new \League\Flysystem\Filesystem($adapter);
+
+            return new \Illuminate\Filesystem\FilesystemAdapter($driver, $adapter);
         });
     }
 }

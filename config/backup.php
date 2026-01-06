@@ -7,7 +7,7 @@ return [
          * The name of this application. You can use this name to monitor
          * the backups.
          */
-        'name' => env('APP_NAME', 'laravel-backup'),
+        'name' => '',
 
         'source' => [
             'files' => [
@@ -130,29 +130,14 @@ return [
              *
              * For more check https://www.php.net/manual/zip.constants.php and confirm it's supported by your system.
              */
-            'compression_method' => ZipArchive::CM_DEFAULT,
-
-            /*
-             * The compression level corresponding to the used algorithm; an integer between 0 and 9.
-             *
-             * Check supported levels for the chosen algorithm, usually 1 means the fastest and weakest compression,
-             * while 9 the slowest and strongest one.
-             *
-             * Setting of 0 for some algorithms may switch to the strongest compression.
-             */
+            'compression_method' => ZipArchive::CM_DEFLATE,
             'compression_level' => 9,
-
-            /*
-             * The filename prefix used for the backup zip file.
-             */
             'filename_prefix' => '',
-
-            /*
-             * The disk names on which the backups will be stored.
-             */
             'disks' => [
-                'local',
+                'local',  // Mantém uma cópia local
+                'google', // Envia uma cópia pro Google Drive
             ],
+
         ],
 
         /*
@@ -254,7 +239,7 @@ return [
      */
     'monitor_backups' => [
         [
-            'name' => env('APP_NAME', 'laravel-backup'),
+            'name' => 'Backups_Sistema',
             'disks' => ['local'],
             'health_checks' => [
                 \Spatie\Backup\Tasks\Monitor\HealthChecks\MaximumAgeInDays::class => 1,
