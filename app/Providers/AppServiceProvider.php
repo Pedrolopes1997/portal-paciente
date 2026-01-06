@@ -20,6 +20,17 @@ use Masbug\Flysystem\GoogleDriveAdapter;
 use Google\Client;
 use Google\Service\Drive;
 
+use Spatie\Health\Facades\Health;
+use Spatie\Health\Checks\Checks\UsedDiskSpaceCheck;
+use Spatie\Health\Checks\Checks\DatabaseCheck;
+use Spatie\Health\Checks\Checks\EnvironmentCheck;
+use Spatie\Health\Checks\Checks\DebugModeCheck;
+use Spatie\Health\Checks\Result;
+use Spatie\Health\Checks\Check;
+use Carbon\Carbon;
+
+use App\Checks\BackupCheck;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -94,5 +105,24 @@ class AppServiceProvider extends ServiceProvider
 
             return new \Illuminate\Filesystem\FilesystemAdapter($driver, $adapter);
         });
+
+        Health::checks([
+            // 1. Monitora o disco da VPS (Alerta em 70%, Erro em 90%)
+            UsedDiskSpaceCheck::new()
+                ->warnWhenUsedSpaceIsAbovePercentage(70)
+                ->failWhenUsedSpaceIsAbovePercentage(90),
+
+            // 2. Garante que o Banco está vivo
+            DatabaseCheck::new(),
+            
+            // 3. Garante que estamos em Produção e Debug desligado
+            EnvironmentCheck::new(),
+            DebugModeCheck::new(),
+
+            // 4. CHECK PERSONALIZADO DE BACKUP
+            // Verifica se existe algum arquivo .zip criado nas últimas 26 horas
+            BackupCheck::new(),
+                
+        ]);
     }
 }

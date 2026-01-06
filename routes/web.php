@@ -4,6 +4,9 @@ use App\Http\Controllers\Auth\PacienteLoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExameController; // <--- Importante estar aqui
 use Illuminate\Support\Facades\Route;
+use Spatie\Health\Http\Controllers\HealthCheckResultsController;
+
+Route::get('/health', HealthCheckResultsController::class); // Rota para o painel de saúde do sistema
 
 // Rota da Landing Page (Página de Vendas)
 Route::get('/', function () {
