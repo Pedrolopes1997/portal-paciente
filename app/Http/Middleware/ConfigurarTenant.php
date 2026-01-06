@@ -24,27 +24,33 @@ class ConfigurarTenant
         // 2. Busca o Tenant no banco
         $tenant = Tenant::where('slug', $slug)->firstOrFail();
 
-        // --- NOVO CÓDIGO: BLOQUEIO ADMINISTRATIVO ---
+        // --- BLOQUEIO ADMINISTRATIVO ---
         if (!$tenant->is_active) {
             abort(403, 'ESTA CLÍNICA ESTÁ TEMPORARIAMENTE SUSPENSA. ENTRE EM CONTATO COM O SUPORTE.');
         }
 
-        // 3. Salva o tenant na memória global do Laravel (para usarmos nos Controllers/Views)
-        // Isso permite acessarmos app('currentTenant') em qualquer lugar
+        // 3. Salva o tenant na memória global do Laravel
         app()->instance('currentTenant', $tenant);
 
-        // 4. Define valores padrões para URL (para os links route() funcionarem sozinhos)
+        // 4. Define valores padrões para URL
         URL::defaults(['tenant_slug' => $slug]);
 
-        // 5. Compartilha com todas as Views (para colocar o Logo e Nome da clinica no login)
+        // 5. Compartilha com todas as Views
         View::share('currentTenant', $tenant);
 
-        // 6. Configura o Banco de Dados (Igual fizemos antes)
+        // --- NOVO: CONFIGURAÇÃO WHITE LABEL (E-mail e Nome do App) ---
+        // Pega o nome do hospital (ajuste 'name' se sua coluna for 'nome_fantasia')
+        $nomeHospital = $tenant->name ?? $tenant->nome_fantasia ?? 'WeCare';
+        
+        // Define que os e-mails sairão com o nome do Hospital
+        Config::set('mail.from.name', $nomeHospital);
+        // Define o nome do App (aparece no rodapé dos e-mails e notificações)
+        Config::set('app.name', $nomeHospital);
+
+        // 6. Configura o Banco de Dados (Tasy/Oracle)
         if ($tenant->mode === 'integrated' && !empty($tenant->db_connection_data)) {
             $dados = $tenant->db_connection_data;
             
-            // ATENÇÃO: Verifique se os nomes das chaves batem com o que salvamos no admin
-            // (db_host ou host, etc). O código abaixo assume que salvamos certo.
             Config::set('database.connections.tenant_erp', [
                 'driver'   => 'oracle',
                 'host'     => $dados['db_host'] ?? '',
