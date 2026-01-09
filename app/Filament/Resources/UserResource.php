@@ -8,8 +8,8 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\DatePicker; // Importante
-use Filament\Forms\Components\Tabs;       // Importante
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Tabs;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -17,6 +17,7 @@ use Filament\Tables\Columns\TextColumn;
 use Illuminate\Support\Facades\Hash;
 use STS\FilamentImpersonate\Tables\Actions\Impersonate;
 use Illuminate\Database\Eloquent\Model;
+use Filament\Forms\Get; // Importante para pegar valor dinâmico
 
 class UserResource extends Resource
 {
@@ -42,22 +43,27 @@ class UserResource extends Resource
                         Tabs\Tab::make('Acesso e Sistema')
                             ->icon('heroicon-o-key')
                             ->schema([
-                                Select::make('tenant_id')
-                                    ->relationship('tenant', 'name')
-                                    ->label('Clínica Vinculada')
-                                    ->searchable()
-                                    ->preload()
-                                    ->required(),
-
                                 Select::make('role')
                                     ->label('Função / Permissão')
                                     ->options([
                                         'super_admin' => 'Super Admin (Dono)',
                                         'admin_clinica' => 'Admin da Clínica',
+                                        'doctor' => 'Médico',
+                                        'receptionist' => 'Recepção',
                                         'paciente' => 'Paciente',
                                     ])
                                     ->default('paciente')
+                                    ->live() // --- MUDANÇA: Torna o campo reativo ---
                                     ->required(),
+
+                                Select::make('tenant_id')
+                                    ->relationship('tenant', 'name')
+                                    ->label('Clínica Vinculada')
+                                    ->searchable()
+                                    ->preload()
+                                    // --- MUDANÇA: Só é obrigatório se NÃO for Super Admin ---
+                                    ->required(fn (Get $get) => $get('role') !== 'super_admin')
+                                    ->helperText(fn (Get $get) => $get('role') === 'super_admin' ? 'Super Admins têm acesso a todas as clínicas, vínculo opcional.' : ''),
 
                                 TextInput::make('email')
                                     ->email()
@@ -92,8 +98,8 @@ class UserResource extends Resource
 
                                 DatePicker::make('nascimento')
                                     ->label('Data de Nascimento')
-                                    ->displayFormat('d/m/Y') // Visão do Usuário
-                                    ->format('Y-m-d')        // Banco de Dados
+                                    ->displayFormat('d/m/Y')
+                                    ->format('Y-m-d')
                                     ->native(false),
                                 
                                 TextInput::make('nome_mae')
@@ -156,7 +162,8 @@ class UserResource extends Resource
                     ->label('Clínica')
                     ->badge()
                     ->color('gray')
-                    ->sortable(),
+                    ->sortable()
+                    ->default('Acesso Global'), // Mostra isso se for NULL
 
                 TextColumn::make('role')
                     ->label('Função')
@@ -165,9 +172,9 @@ class UserResource extends Resource
                         'danger' => 'super_admin',
                         'warning' => 'admin_clinica',
                         'success' => 'paciente',
+                        'info' => 'doctor',
                     ]),
                 
-                // Adicionei CPF na tabela para facilitar a identificação
                 TextColumn::make('cpf')
                     ->label('CPF')
                     ->searchable()
@@ -189,25 +196,23 @@ class UserResource extends Resource
                     ->options([
                         'super_admin' => 'Super Admin',
                         'admin_clinica' => 'Admin Clínica',
+                        'doctor' => 'Médico',
+                        'receptionist' => 'Recepção',
                         'paciente' => 'Paciente',
                     ])
                     ->label('Filtrar por Função'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-
                 Impersonate::make()
                     ->label('Acessar')
-                    ->tooltip('Logar como este usuário no Portal')
-                    ->redirectTo(fn ($record) => route('paciente.dashboard', ['tenant_slug' => $record->tenant->slug])),
+                    ->redirectTo(fn ($record) => route('paciente.dashboard', ['tenant_slug' => $record->tenant->slug ?? 'default'])),
             ]);
     }
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getPages(): array
@@ -223,12 +228,16 @@ class UserResource extends Resource
     {
         return [
             'E-mail' => $record->email,
-            'Hospital' => $record->tenant->name,
+            'Hospital' => $record->tenant->name ?? 'Global',
         ];
     }
-
+    
     public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
     {
-        return parent::getEloquentQuery()->with(['tenant']);
+        // FILTRO RESTRITIVO:
+        // Mostra apenas quem tem cargo de gestão (Super Admin ou Admin de Clínica)
+        // Ignora: Pacientes, Médicos e Recepcionistas.
+        return parent::getEloquentQuery()
+            ->whereIn('role', ['super_admin', 'admin', 'admin_clinica']);
     }
 }
