@@ -11,7 +11,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
-class SpecialtyResource extends Resource
+class MedicalSpecialtyResource extends Resource
 {
     protected static ?string $model = Specialty::class;
 

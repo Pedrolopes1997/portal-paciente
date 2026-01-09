@@ -2,13 +2,13 @@
 
 namespace App\Filament\App\Resources\SpecialtyResource\Pages;
 
-use App\Filament\App\Resources\SpecialtyResource;
+use App\Filament\App\Resources\MedicalSpecialtyResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 
 class ListSpecialties extends ListRecords
 {
-    protected static string $resource = SpecialtyResource::class;
+    protected static string $resource = MedicalSpecialtyResource::class;
 
     protected function getHeaderActions(): array
     {
