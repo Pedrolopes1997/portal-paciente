@@ -28,14 +28,16 @@ class StatsOverview extends BaseWidget
             ->count();
 
         // 2. Busca agendamentos marcados para HOJE
+        // CORREÇÃO: Nome da coluna alterado de 'data_agendamento' para 'scheduled_at'
         $agendamentosHoje = Appointment::where('tenant_id', $tenant->id)
-            ->whereDate('data_agendamento', now())
+            ->whereDate('scheduled_at', now()) 
             ->where('status', '!=', 'cancelado') // Ignora cancelados
             ->count();
 
         // 3. Busca exames que ainda estão 'Em Análise'
+        // CORREÇÃO: Verifica tudo que NÃO está liberado para ser mais preciso
         $examesPendentes = Exam::where('tenant_id', $tenant->id)
-            ->where('status', 'analise')
+            ->whereNotIn('status', ['LIB', 'LIBERADO', 'CONCLUIDO', 'LL'])
             ->count();
 
         return [

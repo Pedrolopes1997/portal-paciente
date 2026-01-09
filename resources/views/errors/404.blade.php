@@ -12,9 +12,6 @@
         <h2 class="text-2xl font-semibold text-gray-800 mt-4">Ops! Página não encontrada.</h2>
         <p class="text-gray-500 mt-2">O link que você tentou acessar não existe ou foi movido.</p>
         
-        <a href="{{ url('/') }}" class="mt-6 inline-block px-6 py-3 bg-teal-600 text-white font-bold rounded-lg hover:bg-teal-700 transition">
-            Voltar ao Início
-        </a>
     </div>
     
     <div class="mt-12 text-gray-400 text-sm">

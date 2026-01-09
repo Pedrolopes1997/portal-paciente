@@ -5,6 +5,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExameController; // <--- Importante estar aqui
 use Illuminate\Support\Facades\Route;
 use Spatie\Health\Http\Controllers\HealthCheckResultsController;
+use App\Livewire\Patient\NewAppointment;
+
 
 Route::get('/health', HealthCheckResultsController::class); // Rota para o painel de saúde do sistema
 
@@ -65,6 +67,9 @@ Route::prefix('{tenant_slug}')
             
             // Dashboard (Home / Resumo)
             Route::get('/', [DashboardController::class, 'index'])->name('paciente.dashboard');
+
+            // Rota para a tela de Novo Agendamento
+            Route::get('/agendar', \App\Livewire\Patient\NewAppointment::class)->name('paciente.agendar');
             
             // Novas Páginas
             Route::get('/minha-agenda', [DashboardController::class, 'agendamentos'])->name('paciente.agenda');
@@ -78,4 +83,23 @@ Route::prefix('{tenant_slug}')
             Route::get('/meu-perfil', [App\Http\Controllers\ProfileController::class, 'edit'])->name('paciente.profile');
             Route::put('/meu-perfil', [App\Http\Controllers\ProfileController::class, 'update'])->name('paciente.profile.update');
         });
+
+        
+        // Coloque isso na ÚLTIMA LINHA do arquivo, fora de qualquer grupo
+        Route::get('/imprimir/agenda/{tenant}', function ($tenantSlug) {
+            
+            if (!auth()->check()) {
+                return redirect('/painel/login');
+            }
+            
+            $tenant = \App\Models\Tenant::where('slug', $tenantSlug)->firstOrFail();
+            
+            $agendamentos = \App\Models\Appointment::where('tenant_id', $tenant->id)
+                ->whereDate('scheduled_at', now())
+                ->orderBy('scheduled_at')
+                ->get();
+
+            return view('painel.print-agenda', compact('agendamentos', 'tenant'));
+
+        })->name('painel.imprimir.agenda');
     });

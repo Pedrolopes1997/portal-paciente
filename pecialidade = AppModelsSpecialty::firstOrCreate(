@@ -1,0 +1,19 @@
+[90m= [39m[34;4mApp\Models\Tenant[39;24m {#7666
+    [34mid[39m: [35m2[39m,
+    [34mname[39m: "[32mConsultório Dr. Pedro[39m",
+    [34mwhatsapp[39m: "[32m5565981536448[39m",
+    [34mslug[39m: "[32mconsultorio-pedro[39m",
+    [34mdomain[39m: [36mnull[39m,
+    [34mlogo_path[39m: "[32mtenants/logos/01KE2P9FH0QJRB7QATVQKCBJ00.png[39m",
+    [34mprimary_color[39m: "[32m#00868f[39m",
+    [34mmode[39m: "[32mstandalone[39m",
+    [34mis_active[39m: [35m1[39m,
+    [34merp_driver[39m: [36mnull[39m,
+    [34mdb_connection_data[39m: [36mnull[39m,
+    [34mcreated_at[39m: "[32m2026-01-03 00:14:26[39m",
+    [34mupdated_at[39m: "[32m2026-01-05 10:29:56[39m",
+    [34msubscription_start[39m: "[32m2026-01-03[39m",
+    [34msubscription_end[39m: "[32m2032-12-31[39m",
+    [34mdeleted_at[39m: [36mnull[39m,
+  }
+

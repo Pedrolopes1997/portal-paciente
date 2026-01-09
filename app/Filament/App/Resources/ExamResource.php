@@ -3,60 +3,50 @@
 namespace App\Filament\App\Resources;
 
 use App\Filament\App\Resources\ExamResource\Pages;
-use App\Filament\App\Resources\ExamResource\RelationManagers;
-use App\Models\Exam;
+use App\Models\Specialty;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ExamResource extends Resource
 {
-    protected static ?string $model = Exam::class;
+    // Apontamos para a tabela Specialties (onde ficam os nomes dos exames)
+    protected static ?string $model = Specialty::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-beaker';
+    protected static ?string $navigationGroup = 'Cadastros';
+    protected static ?string $navigationLabel = 'Exames e Procedimentos';
+    protected static ?string $modelLabel = 'Exame';
 
-        protected static ?string $modelLabel = 'Exame';
-    protected static ?string $pluralModelLabel = 'Exames';
-    protected static ?string $navigationLabel = 'Exames';
+    // Filtra para mostrar APENAS o que é exame
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->where('type', 'exame');
+    }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('user_id')
-                    ->label('Paciente')
-                    ->relationship('user', 'name') // Busca relação user e mostra o nome
-                    ->searchable()
-                    ->preload()
-                    ->required(),
-                
-                Forms\Components\TextInput::make('title')
-                    ->label('Nome do Exame')
-                    ->placeholder('Ex: Hemograma Completo')
-                    ->required(),
+                Forms\Components\Section::make()
+                    ->schema([
+                        Forms\Components\TextInput::make('name')
+                            ->label('Nome do Exame')
+                            ->placeholder('Ex: Hemograma Completo')
+                            ->required()
+                            ->maxLength(255),
+                        
+                        Forms\Components\Textarea::make('description')
+                            ->label('Descrição / Preparo')
+                            ->placeholder('Ex: Jejum de 8 horas...'),
 
-                Forms\Components\DatePicker::make('date')
-                    ->label('Data do Exame')
-                    ->default(now())
-                    ->required(),
-
-                Forms\Components\Select::make('status')
-                    ->options([
-                        'analise' => 'Em Análise',
-                        'liberado' => 'Liberado',
+                        // Campo Oculto para forçar ser Exame ao salvar
+                        Forms\Components\Hidden::make('type')
+                            ->default('exame'),
                     ])
-                    ->default('analise')
-                    ->required(),
-
-                Forms\Components\FileUpload::make('file_path')
-                    ->label('Arquivo PDF')
-                    ->directory('exames_locais') // Pasta no storage
-                    ->acceptedFileTypes(['application/pdf'])
-                    ->preserveFilenames(),
             ]);
     }
 
@@ -64,31 +54,24 @@ class ExamResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('user.name')
-                    ->label('Paciente')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('title')
-                    ->label('Exame')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('date')
-                    ->date('d/m/Y')
-                    ->label('Data'),
-                Tables\Columns\BadgeColumn::make('status')
-                    ->colors([
-                        'warning' => 'analise',
-                        'success' => 'liberado',
-                    ]),
+                Tables\Columns\TextColumn::make('name')
+                    ->label('Procedimento')
+                    ->searchable()
+                    ->sortable(), // Permite clicar para ordenar por nome
             ])
-            ->defaultSort('date', 'desc');
+            // --- CORREÇÃO DO ERRO ---
+            // Forçamos a ordenação por 'name' ou 'created_at'. 
+            // Se deixasse 'date', daria o erro que você viu.
+            ->defaultSort('name', 'asc') 
+            ->actions([
+                Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
+            ])
+            ->bulkActions([
+                Tables\Actions\DeleteBulkAction::make(),
+            ]);
     }
-
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
-    }
-
+    
     public static function getPages(): array
     {
         return [

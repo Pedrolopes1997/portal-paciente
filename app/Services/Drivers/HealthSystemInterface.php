@@ -14,6 +14,25 @@ interface HealthSystemInterface
     public function obterPdfLaudo($idExame);
 
     public function buscarUltimoConvenio($idPaciente);
-
     public function buscarDetalhesPaciente($idPaciente);
+
+    /**
+     * Retorna lista de especialidades disponíveis
+     */
+    public function buscarEspecialidades(string $tipo = 'consulta');
+
+    /**
+     * Retorna lista de médicos (opcionalmente filtrado por especialidade)
+     */
+    public function buscarMedicos($idEspecialidade = null);
+
+    /**
+     * O Core do sistema: Retorna os slots de tempo livres
+     */
+    public function buscarHorariosDisponiveis($idMedico, string $data);
+
+    /**
+     * Salva o agendamento
+     */
+    public function criarAgendamento(array $dados);
 }

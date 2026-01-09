@@ -10,21 +10,36 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Hash;
+use App\Filament\App\Resources\UserResource\RelationManagers;
+use Illuminate\Database\Eloquent\Builder;
 
 class UserResource extends Resource
 {
+    protected static ?int $navigationSort = 2;
+
     protected static ?string $model = User::class;
     protected static ?string $navigationIcon = 'heroicon-o-users';
-    protected static ?string $modelLabel = 'Paciente';
-    protected static ?string $pluralModelLabel = 'Pacientes';
+    
+    // CORREÇÃO DOS NOMES
+    protected static ?string $modelLabel = 'Usuário';
+    protected static ?string $pluralModelLabel = 'Usuários';
+    
+    protected static ?string $navigationGroup = 'Cadastros';
+    protected static ?string $navigationLabel = 'Usuários e Médicos';
+
+    public static function getEloquentQuery(): Builder
+    {
+        // Mostra tudo MENOS pacientes
+        return parent::getEloquentQuery()->where('role', '!=', 'patient');
+    }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Tabs::make('Cadastro do Paciente')
+                Forms\Components\Tabs::make('Cadastro de Usuário')
                     ->tabs([
-                        // ABA 1: DADOS BÁSICOS
+                        // ABA 1: DADOS PESSOAIS
                         Forms\Components\Tabs\Tab::make('Dados Pessoais')
                             ->schema([
                                 Forms\Components\TextInput::make('name')
@@ -35,63 +50,63 @@ class UserResource extends Resource
                                     ->label('CPF')
                                     ->mask('999.999.999-99'),
 
-                                Forms\Components\TextInput::make('cns')
-                                    ->label('Cartão SUS (CNS)')
-                                    ->mask('999999999999999'),
+                                Forms\Components\Toggle::make('is_patient')
+                                    ->label('Este usuário também é Paciente?')
+                                    ->helperText('Se marcado, ele aparecerá na lista de Pacientes e poderá ter prontuário, mesmo sendo Médico ou Admin.')
+                                    ->default(false),
 
-                                Forms\Components\DatePicker::make('nascimento')
-                                    ->label('Data de Nascimento')
-                                    ->displayFormat('d/m/Y') // <--- COMO O USUÁRIO VÊ
-                                    ->format('Y-m-d')        // <--- COMO O BANCO RECEBE (MySQL)
-                                    ->native(false)          // <--- Usa o calendário bonito do Filament (JS) em vez do nativo do browser
-                                    ->maxDate(now()),        // (Opcional) Impede datas futuras
-                                
-                                Forms\Components\TextInput::make('nome_mae')
-                                    ->label('Nome da Mãe'),
-                                
                                 Forms\Components\TextInput::make('celular')
                                     ->label('Celular / WhatsApp')
                                     ->mask('(99) 99999-9999'),
+
+                                // --- CORREÇÃO: MOVIDO PARA DENTRO DA ABA ---
+                                Forms\Components\Select::make('role')
+                                    ->label('Perfil de Acesso')
+                                    ->options([
+                                        'admin' => 'Admin',
+                                        'doctor' => 'Médico',
+                                        'receptionist' => 'Recepção'
+                                    ])
+                                    ->required()
+                                    ->live(), // Importante para o visible do CRM
+
+                                Forms\Components\TextInput::make('crm')
+                                    ->label('CRM / Registro')
+                                    ->visible(fn (Forms\Get $get) => $get('role') === 'doctor'),
+                                // -------------------------------------------
                             ])->columns(2),
 
-                        // ABA 2: ENDEREÇO
+                        // ABA 2: ENDEREÇO (Opcional para staff, mas mantive)
                         Forms\Components\Tabs\Tab::make('Endereço')
                             ->schema([
                                 Forms\Components\TextInput::make('cep')
                                     ->label('CEP')
-                                    ->mask('99999-999')
-                                    ->columnSpan(1),
+                                    ->mask('99999-999'),
                                 
                                 Forms\Components\TextInput::make('endereco')
                                     ->label('Rua / Avenida')
-                                    ->columnSpan(2), // Ocupa 2 espaços
+                                    ->columnSpan(2),
 
                                 Forms\Components\TextInput::make('numero')
-                                    ->label('Número')
-                                    ->columnSpan(1),
+                                    ->label('Número'),
 
-                                // --- NOVO CAMPO ---
                                 Forms\Components\TextInput::make('complemento')
                                     ->label('Complemento')
-                                    ->placeholder('Ex: Ap 102, Bloco C')
-                                    ->columnSpan(2), // Ocupa 2 espaços para ficar largo
+                                    ->columnSpan(2),
 
                                 Forms\Components\TextInput::make('bairro')
-                                    ->label('Bairro')
-                                    ->columnSpan(1),
+                                    ->label('Bairro'),
 
                                 Forms\Components\TextInput::make('cidade')
-                                    ->label('Cidade')
-                                    ->columnSpan(1),
+                                    ->label('Cidade'),
 
                                 Forms\Components\TextInput::make('uf')
                                     ->label('UF')
-                                    ->maxLength(2)
-                                    ->columnSpan(1),
-                            ])->columns(3), // Grid de 3 colunas
+                                    ->maxLength(2),
+                            ])->columns(3),
                             
-                        // ABA 3: ACESSO (LOGIN)
-                        Forms\Components\Tabs\Tab::make('Acesso ao Portal')
+                        // ABA 3: ACESSO
+                        Forms\Components\Tabs\Tab::make('Acesso ao Sistema')
                             ->schema([
                                 Forms\Components\TextInput::make('email')
                                     ->email()
@@ -105,16 +120,17 @@ class UserResource extends Resource
                                     ->dehydrated(fn ($state) => filled($state))
                                     ->required(fn (string $context): bool => $context === 'create')
                                     ->label('Senha'),
-                                
-                                // Campo Oculto para forçar role 'paciente' neste painel
-                                Forms\Components\Hidden::make('role')
-                                    ->default('paciente'),
-                                
-                                // O tenant_id é injetado automaticamente pelo Scopo do Filament App,
-                                // mas se precisar forçar:
-                                // Forms\Components\Hidden::make('tenant_id')
-                                //    ->default(auth()->user()->tenant_id),
-                            ]),
+
+                                // Especialidades (Exclusivo para médicos)
+                                Forms\Components\Select::make('specialties')
+                                    ->label('Especialidades Médicas')
+                                    ->relationship('specialties', 'name', function($query) {
+                                        return $query->where('type', 'medica');
+                                    })
+                                    ->multiple()
+                                    ->preload()
+                                    ->visible(fn (Forms\Get $get) => $get('role') === 'doctor'),
+                            ])
                     ])->columnSpanFull()
             ]);
     }
@@ -128,19 +144,33 @@ class UserResource extends Resource
                     ->searchable()
                     ->sortable(),
                 
-                Tables\Columns\TextColumn::make('cpf')
-                    ->label('CPF')
-                    ->searchable(),
-
-                Tables\Columns\TextColumn::make('celular')
-                    ->label('Celular'),
-
                 Tables\Columns\TextColumn::make('email')
-                    ->label('E-mail')
                     ->searchable(),
+
+                Tables\Columns\TextColumn::make('role')
+                    ->label('Perfil')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'admin' => 'Administrador',
+                        'doctor' => 'Médico',
+                        'receptionist' => 'Recepção',
+                        default => ucfirst($state),
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        'admin' => 'danger',
+                        'doctor' => 'info',
+                        'receptionist' => 'warning',
+                        default => 'gray',
+                    }),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('role')
+                    ->label('Filtrar por Perfil')
+                    ->options([
+                        'doctor' => 'Médicos',
+                        'receptionist' => 'Recepcionistas',
+                        'admin' => 'Administradores',
+                    ]),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
@@ -152,7 +182,9 @@ class UserResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            RelationManagers\SchedulesRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

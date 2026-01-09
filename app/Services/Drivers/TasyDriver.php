@@ -4,6 +4,7 @@ namespace App\Services\Drivers;
 
 use Illuminate\Support\Facades\DB;
 use App\Models\Tenant;
+use Carbon\Carbon;
 
 class TasyDriver implements HealthSystemInterface
 {
@@ -15,9 +16,10 @@ class TasyDriver implements HealthSystemInterface
         $this->tenant = $tenant;
     }
 
-    // -------------------------------------------------------------------------
-    // BUSCAR PACIENTE (LOGIN)
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // PARTE 1: SEUS MÉTODOS ORIGINAIS
+    // =========================================================================
+
     public function buscarPaciente(string $cpf, string $nascimento)
     {
         $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf);
@@ -30,28 +32,23 @@ class TasyDriver implements HealthSystemInterface
             ->first();
     }
 
-    // -------------------------------------------------------------------------
-    // BUSCAR AGENDAMENTOS
-    // -------------------------------------------------------------------------
     public function buscarAgendamentos($idPaciente)
     {
-        // 1. Busca usando Query Builder + Raw para funções do Oracle
+        // 1. Busca usando Query Builder
         $agendamentos = DB::connection($this->connection)
             ->table('AGENDA_CONSULTA')
             ->select(
                 'NR_SEQUENCIA as id',
-                // Função Tasy para nome da agenda
                 DB::raw("OBTER_DESC_AGENDA(CD_AGENDA) as agenda"), 
-                'DT_AGENDA as data_agendamento',
+                'DT_AGENDA as data_agendamento', // Mantive o nome original do banco aqui
                 'IE_STATUS_AGENDA as status_codigo'
             )
             ->where('CD_PESSOA_FISICA', $idPaciente)
-            // IMPORTANTE: Usa o SYSDATE do banco para ignorar fuso horário do PHP
             ->whereRaw("DT_AGENDA >= TRUNC(SYSDATE) - 30") 
             ->orderBy('DT_AGENDA', 'asc')
             ->get();
 
-        // 2. Mapeamento de Status (Tasy -> Portal)
+        // 2. Mapeamento
         return $agendamentos->map(function($agenda) {
             
             $statusAmigavel = match($agenda->status_codigo) {
@@ -65,8 +62,14 @@ class TasyDriver implements HealthSystemInterface
             return (object) [
                 'id' => $agenda->id,
                 'medico' => $agenda->agenda, 
+                
+                // --- IMPORTANTE: ADICIONADO PARA O DASHBOARD NÃO QUEBRAR ---
+                'type' => 'consulta', 
+                
+                // Renomeia para o padrão novo que o dashboard espera
+                'scheduled_at' => \Carbon\Carbon::parse($agenda->data_agendamento),
+                
                 'especialidade' => 'Ambulatório', 
-                'data_agendamento' => \Carbon\Carbon::parse($agenda->data_agendamento),
                 'status' => $statusAmigavel,
                 'tenant_id' => 'tasy_externo',
                 'user_id' => null
@@ -74,12 +77,8 @@ class TasyDriver implements HealthSystemInterface
         });
     }
 
-    // -------------------------------------------------------------------------
-    // BUSCAR EXAMES (RESULTADOS) - QUERY CORRIGIDA
-    // -------------------------------------------------------------------------
     public function buscarExames($idPaciente)
     {
-        // Query com DT_PROCEDIMENTO conforme solicitado
         $exames = DB::connection($this->connection)
             ->table('PROCEDIMENTO_PACIENTE as a')
             ->leftJoin('LAUDO_PACIENTE as b', 'a.NR_LAUDO', '=', 'b.NR_SEQUENCIA')
@@ -89,19 +88,15 @@ class TasyDriver implements HealthSystemInterface
                 'b.DT_LIBERACAO as data_liberacao',
                 DB::raw("CASE WHEN b.DT_LIBERACAO IS NULL THEN 'EA' ELSE 'LL' END AS status_laudo"),
                 'a.NR_LAUDO',
-                'a.DT_PROCEDIMENTO as data' // <--- Campo corrigido
+                'a.DT_PROCEDIMENTO as data'
             )
-            // Filtro por função no WHERE
             ->whereRaw("OBTER_PF_ATENDIMENTO(a.NR_ATENDIMENTO, 'C') = ?", [$idPaciente])
-            ->orderBy('a.DT_PROCEDIMENTO', 'desc') // Ordena pela data do procedimento
+            ->orderBy('a.DT_PROCEDIMENTO', 'desc')
             ->limit(50)
             ->get();
 
-        // Mapeamento
         return $exames->map(function($exame) {
             $statusFinal = ($exame->status_laudo === 'LL') ? 'LIBERADO' : 'EM ANÁLISE';
-            
-            // Usamos a 'data' (DT_PROCEDIMENTO) vinda da query
             $dataExibicao = $exame->data; 
 
             return (object) [
@@ -109,14 +104,13 @@ class TasyDriver implements HealthSystemInterface
                 'descricao' => $exame->descricao,
                 'data' => $dataExibicao,
                 'status' => $statusFinal,
-                'status_laudo' => $exame->status_laudo // Passamos o raw também por garantia
+                'status_laudo' => $exame->status_laudo
             ];
         });
     }
 
     public function obterPdfLaudo($idExame)
     {
-        // 1. Descobrir o NR_LAUDO
         $procedimento = DB::connection($this->connection)
             ->table('PROCEDIMENTO_PACIENTE')
             ->select('NR_LAUDO')
@@ -127,7 +121,6 @@ class TasyDriver implements HealthSystemInterface
             return null;
         }
 
-        // 2. Buscar o HTML na coluna DS_LAUDO
         $laudo = DB::connection($this->connection)
             ->table('LAUDO_PACIENTE')
             ->select('DS_LAUDO', 'DS_TITULO_LAUDO')
@@ -135,7 +128,6 @@ class TasyDriver implements HealthSystemInterface
             ->first();
 
         if ($laudo && !empty($laudo->ds_laudo)) {
-            // Retornamos um array estruturado para o Controller saber o que fazer
             return [
                 'tipo' => 'html',
                 'conteudo' => $laudo->ds_laudo,
@@ -148,10 +140,8 @@ class TasyDriver implements HealthSystemInterface
 
     public function validarPaciente($cpf, $dataNascimento)
     {
-        // Limpa o CPF (deixa só números)
         $cpfLimpo = preg_replace('/[^0-9]/', '', $cpf);
 
-        // Busca na tabela PESSOA_FISICA (Tabela mestre de pacientes do Tasy)
         $paciente = DB::connection($this->connection)
             ->table('PESSOA_FISICA')
             ->select('CD_PESSOA_FISICA', 'NM_PESSOA_FISICA')
@@ -162,7 +152,6 @@ class TasyDriver implements HealthSystemInterface
         return $paciente;
     }
 
-    // NOVO MÉTODO COM SEU SQL CORRIGIDO
     public function buscarUltimoConvenio($idPaciente)
     {
         try {
@@ -170,9 +159,7 @@ class TasyDriver implements HealthSystemInterface
                 ->table('ATENDIMENTO_PACIENTE as a')
                 ->join('ATEND_CATEGORIA_CONVENIO as c', 'a.NR_ATENDIMENTO', '=', 'c.NR_ATENDIMENTO')
                 ->select(
-                    // Função Tasy para nome do convênio
                     DB::raw("OBTER_DESC_CONVENIO(c.CD_CONVENIO) as convenio"),
-                    // Carteirinha
                     'c.CD_USUARIO_CONVENIO as carteirinha'
                 )
                 ->where('a.CD_PESSOA_FISICA', $idPaciente)
@@ -185,9 +172,6 @@ class TasyDriver implements HealthSystemInterface
             ];
 
         } catch (\Exception $e) {
-            // Em produção, você pode descomentar para ver o erro no log:
-            // \Illuminate\Support\Facades\Log::error("Erro Convenio: " . $e->getMessage());
-            
             return (object) [
                 'convenio' => 'Erro na Busca', 
                 'carteirinha' => '---'
@@ -195,7 +179,6 @@ class TasyDriver implements HealthSystemInterface
         }
     }
 
-    // NOVO MÉTODO DE PERFIL (COM SEU SQL)
     public function buscarDetalhesPaciente($idPaciente)
     {
         $sql = "
@@ -228,14 +211,69 @@ class TasyDriver implements HealthSystemInterface
         ";
 
         try {
-            // Executa o SQL bruto passando o ID com segurança
             $dados = DB::connection($this->connection)->selectOne($sql, ['id_paciente' => $idPaciente]);
-
             return $dados;
-
         } catch (\Exception $e) {
-            // Em caso de erro, retorna null para não quebrar a tela
             return null;
         }
+    }
+
+    // =========================================================================
+    // PARTE 2: NOVOS MÉTODOS DE MOCK (PARA AGENDAMENTO)
+    // =========================================================================
+
+    public function buscarEspecialidades(string $tipo = 'consulta')
+    {
+        if ($tipo === 'exame') {
+            return collect([
+                (object)['id' => 901, 'name' => 'Ultrassonografia (Tasy)', 'descricao' => 'Imagem'],
+                (object)['id' => 902, 'name' => 'Raio-X (Tasy)', 'descricao' => 'Imagem']
+            ]);
+        }
+
+        return collect([
+            (object)['id' => 101, 'name' => 'Cardiologia (Tasy)', 'descricao' => 'Consulta'],
+            (object)['id' => 102, 'name' => 'Ortopedia (Tasy)', 'descricao' => 'Consulta']
+        ]);
+    }
+
+    // CORRIGIDO: Adicionado "= null" para compatibilidade com Interface
+    public function buscarMedicos($idEspecialidade = null)
+    {
+        return [
+            (object)[
+                'id' => 999, 
+                'name' => 'Dr. Tasy Teste', 
+                'crm' => '12345-SP'
+            ]
+        ];
+    }
+
+    public function buscarHorariosDisponiveis($idMedico, string $data)
+    {
+        return [
+            ['time' => '08:00', 'available' => true],
+            ['time' => '10:30', 'available' => true],
+            ['time' => '14:00', 'available' => true],
+        ];
+    }
+
+    public function criarAgendamento(array $dados)
+    {
+        return (object) [
+            'id' => rand(5000, 9999),
+            'status' => 'confirmed',
+            'scheduled_at' => $dados['scheduled_at'] ?? now()
+        ];
+    }
+
+    public function checkPassword(string $cpf, string $password): bool
+    {
+        return true; 
+    }
+    
+    public function buscarPacientePorCpf(string $cpf)
+    {
+         return null; 
     }
 }

@@ -54,6 +54,23 @@ class Tenant extends Model
         return $this->hasMany(Appointment::class);
     }
 
+    public function members()
+    {
+        return $this->belongsToMany(User::class);
+    }
+
+    // 1. Relacionamento com Agendas (Resolve o erro do ScheduleResource)
+    public function schedules(): HasMany
+    {
+        return $this->hasMany(Schedule::class);
+    }
+
+    // 2. Relacionamento com Especialidades (Resolve o erro do SpecialtyResource)
+    public function specialties(): HasMany
+    {
+        return $this->hasMany(Specialty::class);
+    }
+
     // --- NOVO MÉTODO ---
     public function getWhatsappLink(string $mensagem = ''): ?string
     {

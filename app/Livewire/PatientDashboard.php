@@ -58,23 +58,20 @@ class PatientDashboard extends Component
         try {
             $agendamentos = $driver->buscarAgendamentos($idBusca)->take(3);
             
-            // BUSCA ORIGINAL (Traz até 50 exames conforme o driver)
+            // BUSCA ORIGINAL
             $examesRaw = $driver->buscarExames($idBusca);
             
-            // CONTA REAL (Antes de cortar para 5)
+            // CONTA REAL
             $totalExamesCount = $examesRaw->count(); 
             
-            // FORMATA E CORTA (Para a lista visual)
+            // FORMATA E CORTA
             $exames = $this->formatarExames($examesRaw, $tenant)->take(5);
 
-            // NOVO: Busca dados reais do convênio
-            // Se for LocalDriver, precisamos criar um método fake ou tratar aqui
-            if ($tenant->erp_driver === 'tasy') {
-                $dadosConvenio = $driver->buscarUltimoConvenio($idBusca);
-            } else {
-                $dadosConvenio = (object) ['convenio' => 'Local / Teste', 'carteirinha' => '0000'];
-            }
-            
+            // --- CORREÇÃO AQUI ---
+            // Removemos o IF/ELSE que forçava "Local/Teste".
+            // Agora chamamos o método do driver seja ele Local ou Tasy.
+            $dadosConvenio = $driver->buscarUltimoConvenio($idBusca);
+            // ---------------------
 
         } catch (\Exception $e) {
             $agendamentos = collect([]);
@@ -85,15 +82,15 @@ class PatientDashboard extends Component
 
         $paciente = [
             'nome' => $user->name,
-            'carteirinha' => $dadosConvenio->carteirinha, // Agora é real
-            'plano' => $dadosConvenio->convenio           // Agora é real
+            'carteirinha' => $dadosConvenio->carteirinha,
+            'plano' => $dadosConvenio->convenio
         ];
 
         return view('livewire.patient-dashboard', [
             'paciente' => $paciente,
             'agendamentos' => $agendamentos,
             'exames' => $exames,
-            'totalExamesCount' => $totalExamesCount, // Passamos a contagem correta
+            'totalExamesCount' => $totalExamesCount,
             'tenant' => $tenant,
             'user' => $user
         ]);

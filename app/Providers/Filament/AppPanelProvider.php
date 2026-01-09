@@ -31,17 +31,24 @@ class AppPanelProvider extends PanelProvider
             ->login()
             
             // --- MELHORIAS VISUAIS ---
-            ->spa() // Navegação instantânea (parece app nativo)
-            ->font('DM Sans') // Fonte moderna e limpa
+            ->spa() 
+            ->font('DM Sans') 
             ->colors([
-                'primary' => Color::Sky, // Azul mais suave/hospitalar que o Indigo
-                'gray' => Color::Slate,  // Cinza azulado, mais elegante
+                'primary' => Color::Sky, 
+                'gray' => Color::Slate, 
             ])
-            ->sidebarCollapsibleOnDesktop() // Permite recolher o menu para focar nos dados
-            ->maxContentWidth('full') // Usa toda a largura da tela
+            ->sidebarCollapsibleOnDesktop() 
+            ->maxContentWidth('full') 
             // -------------------------
 
-            // Lógica da Marca (Mantida)
+            // --- AQUI ESTÁ O AJUSTE DA ORDEM DO MENU ---
+            ->navigationGroups([
+                'Atendimento', // 1º lugar
+                'Cadastros',   // 2º lugar
+                'Configurações', // 3º lugar (se houver)
+            ])
+            // -------------------------------------------
+
             ->brandName(fn () => Filament::getTenant()?->name ?? 'Portal do Paciente')
             ->brandLogo(function () {
                 $tenant = Filament::getTenant();

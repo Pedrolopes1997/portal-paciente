@@ -6,16 +6,25 @@ use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\DB;
 use App\Services\Drivers\HealthSystemInterface;
+use Carbon\Carbon;
 
 class PatientAppointments extends Component
 {
     public $tenantSlug;
+    
+    // NOVO: Controla a aba ativa pelo PHP (Padrão: 'proximos')
+    public $activeTab = 'proximos'; 
 
     public function mount($tenant_slug)
     {
         $this->tenantSlug = $tenant_slug;
+    }
+
+    // Função para trocar de aba via clique
+    public function setTab($tab)
+    {
+        $this->activeTab = $tab;
     }
 
     public function placeholder()
@@ -28,7 +37,7 @@ class PatientAppointments extends Component
         $tenant = Tenant::where('slug', $this->tenantSlug)->firstOrFail();
         $user = Auth::user();
 
-        // 1. RECONECTA NO BANCO DO CLIENTE (Se for Tasy)
+        // 1. Configura Tasy
         if ($tenant->mode === 'integrated' && !empty($tenant->db_connection_data) && $tenant->erp_driver === 'tasy') {
             $dados = $tenant->db_connection_data;
             Config::set('database.connections.tenant_erp', [
@@ -44,7 +53,7 @@ class PatientAppointments extends Component
             ]);
         }
 
-        // 2. Instancia o Driver
+        // 2. Instancia Driver
         if ($tenant->erp_driver === 'tasy') {
             $driver = new \App\Services\Drivers\TasyDriver($tenant);
             $idBusca = $user->tasy_cd_pessoa_fisica;
@@ -53,16 +62,27 @@ class PatientAppointments extends Component
             $idBusca = $user->id;
         }
 
-        // 3. Busca os Agendamentos
+        // 3. Busca TUDO
         try {
-            $agendamentos = $driver->buscarAgendamentos($idBusca);
+            $todosAgendamentos = $driver->buscarAgendamentos($idBusca, true); 
         } catch (\Exception $e) {
-            $agendamentos = collect([]);
+            $todosAgendamentos = collect([]);
         }
 
-        // Retornamos para a view junto com o $tenant (necessário para o botão do WhatsApp)
+        // 4. Separa Futuro de Passado
+        $agora = Carbon::now();
+
+        $proximos = $todosAgendamentos->filter(function ($item) use ($agora) {
+            return Carbon::parse($item->scheduled_at)->gte($agora->copy()->startOfDay());
+        })->sortBy('scheduled_at');
+
+        $historico = $todosAgendamentos->filter(function ($item) use ($agora) {
+            return Carbon::parse($item->scheduled_at)->lt($agora->copy()->startOfDay());
+        })->sortByDesc('scheduled_at');
+
         return view('livewire.patient-appointments', [
-            'agendamentos' => $agendamentos,
+            'proximos' => $proximos,
+            'historico' => $historico,
             'tenant' => $tenant
         ]);
     }
