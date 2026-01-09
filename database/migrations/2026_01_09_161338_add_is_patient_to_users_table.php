@@ -11,16 +11,22 @@ return new class extends Migration
      */
     public function up(): void
 {
-    Schema::table('users', function (Blueprint $table) {
-        // Cria a flag que permite ser paciente junto com qualquer outro cargo
-        $table->boolean('is_patient')->default(false)->after('role');
-    });
+    // 1. CORREÇÃO DO ERRO: Alterar a coluna 'role' para VARCHAR
+    // Isso resolve o "Data truncated". Usamos SQL direto para ser compatível e rápido.
+    \DB::statement("ALTER TABLE users MODIFY COLUMN role VARCHAR(50) NULL DEFAULT NULL");
 
-    // --- MIGRAR DADOS ANTIGOS AGORA MESMO ---
-    // Pega todo mundo que já era paciente (em inglês ou português) e marca a flag
+    // 2. CRIAR A COLUNA (Com verificação de segurança)
+    // Como sua migração falhou no meio, verificamos se a coluna já existe antes de criar
+    if (!Schema::hasColumn('users', 'is_patient')) {
+        Schema::table('users', function (Blueprint $table) {
+            $table->boolean('is_patient')->default(false)->after('role');
+        });
+    }
+
+    // 3. ATUALIZAR OS DADOS
     \DB::table('users')
         ->whereIn('role', ['patient', 'paciente', 'Patient'])
-        ->update(['is_patient' => true, 'role' => 'patient']); 
+        ->update(['is_patient' => true, 'role' => 'patient']);
 }
 
     /**
