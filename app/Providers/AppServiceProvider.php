@@ -31,6 +31,8 @@ use Carbon\Carbon;
 
 use App\Checks\BackupCheck;
 
+use Illuminate\Support\Facades\URL;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
